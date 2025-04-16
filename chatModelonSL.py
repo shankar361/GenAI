@@ -98,7 +98,7 @@ if path is not None:
             splittedpdfDoc = loadAndSplit_pdfFile(file_dir + files.name)
             docs.extend(splittedpdfDoc)
         else:
-            docs.extend(load_file(file_dir + files.name))
+            docs.extend(load_file(files.name))
     noOfFilesUploaded = len(docs)
   
     if len(docs) > 0:
