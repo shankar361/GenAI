@@ -84,7 +84,7 @@ def  createRetrieverQA(docs,emb):
 
 emb = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 docs = []
-file_dir = "C:\\Users\\Admin\\Downloads\\Shankar\\"
+#file_dir = "C:\\Users\\Admin\\Downloads\\Shankar\\"
 st.title("Hiring Agent")
 st.header("******Your Personalized Hiring assistant******")
 path = st.file_uploader("Upload Candidate's Resume and supporting docs(*.pdf, *.docx)",
