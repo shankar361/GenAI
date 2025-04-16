@@ -95,7 +95,7 @@ help="Upload one more more files"
 if path is not None:
     for files in path:
         if files.name.endswith(".pdf"):
-            splittedpdfDoc = loadAndSplit_pdfFile(file_dir + files.name)
+            splittedpdfDoc = loadAndSplit_pdfFile(files.name)
             docs.extend(splittedpdfDoc)
         else:
             docs.extend(load_file(files.name))
