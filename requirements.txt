@@ -2,3 +2,4 @@ python-docx
 langchain_openai
 langchain_community
 langchain_huggingface
+faiss-cpu
