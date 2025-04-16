@@ -7,6 +7,7 @@ from langchain.chains.retrieval_qa.base import RetrievalQA
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain.schema import Document
+import tempfile
 import dotenv
 import os
 
@@ -50,7 +51,6 @@ def start_chat(qa):
 
 
 def load_file(file_path):
-  #  file_path="C:\\Users\\Admin\\Downloads\\Shankar\\shankarbhagatLatest.docx"
     docx  = DocxDocument(file_path)
     text  = "\n".join([p.text for p in docx.paragraphs if p.text.strip()])
     return [Document(page_content=text)]
@@ -62,16 +62,18 @@ def splitData(pdfData):
 
 
 def loadAndSplit_pdfFile(files):
+  
     loader  = PyMuPDFLoader(files)
     pdfData = loader.load()
     splittedpdfDoc = splitData(pdfData)
     return splittedpdfDoc
 
+def createTempfile(files):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_file:
+        tmp_file.write(files.read())
+        return tmp_file.name
 
 def  createRetrieverQA(docs,emb):
-   # global count
-  #  count+=1
- #   st.write("calling createRetrieverQA "+str(count))
     vectorStores = FAISS.from_documents(docs,emb)
     retriever = vectorStores.as_retriever()
     qa = RetrievalQA.from_llm(
@@ -84,7 +86,6 @@ def  createRetrieverQA(docs,emb):
 
 emb = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 docs = []
-#file_dir = "C:\\Users\\Admin\\Downloads\\Shankar\\"
 st.title("Hiring Agent")
 st.header("******Your Personalized Hiring assistant******")
 path = st.file_uploader("Upload Candidate's Resume and supporting docs(*.pdf, *.docx)",
@@ -94,12 +95,12 @@ help="Upload one more more files"
 
 if path is not None:
     for files in path:
-        if files.name.endswith(".pdf"):
-            splittedpdfDoc = loadAndSplit_pdfFile(files.name)
+        tmp = createTempfile(files)
+        if files.name.endswith(".pdf"):         
+            splittedpdfDoc = loadAndSplit_pdfFile(tmp)
             docs.extend(splittedpdfDoc)
         else:
-            docs.extend(load_file(files.name))
-    noOfFilesUploaded = len(docs)
+            docs.extend(load_file(tmp))
   
     if len(docs) > 0:
         with st.spinner("Builing dataset, please wait.."):
