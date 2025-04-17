@@ -45,7 +45,7 @@ def start_chat(qa):
                 if not response["source_documents"]:
                     st.write("The Question is out of context or the correct documents not provided")
                 else:
-                 #   st.write(response["result"]) 
+                    st.write(response["result"]) 
                     st.session_state.chat_history +="You:\n"+response["query"]+"\nHRBuddy:\n"+response["result"]+"\n\n"
                     st.text_area("Conversation with HRBuddy", value=st.session_state.chat_history, height=400)
 
