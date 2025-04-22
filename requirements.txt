@@ -4,3 +4,4 @@ langchain_community
 langchain_huggingface
 faiss-cpu
 pymupdf
+pdf2docx
