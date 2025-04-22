@@ -104,8 +104,7 @@ def start_chat(qa,resumeUploaded):
                     buildResult(response)
                  
                     st.session_state.query=""
-                  
-            
+                           
 
 def render_chat(chat_history: str):
     st.markdown("""
