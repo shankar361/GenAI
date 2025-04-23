@@ -26,6 +26,9 @@ if "singleConv" not in st.session_state:
 if "query_input" not in st.session_state:
     st.session_state.query_input = ""
 
+if "prevQuery" not in st.session_state:
+    st.session_state.prevQuery=""
+
 if "query" not in st.session_state:
     st.session_state.query = ""
 
@@ -101,14 +104,18 @@ def start_chat(qa,resumeUploaded):
         if upQuery == "Q" or upQuery == "QUIT" or upQuery == "END" or upQuery == "BYE" :
             st.write("Thank you for using our AI system, Good bye..!")
         else:
-            if st.session_state.query != "" :
-                with st.spinner("Analyzing data based on your query.."):
-                    response = qa.invoke(query)
-                    #if not response["source_documents"]:
-                        #st.write("The Question is out of context or the correct documents not provided")
-                    #else:
-                    buildResult(response)
-                    st.session_state.query = ""
+            if query != "" :
+                if query != st.session_state.prevQuery:
+                    with st.spinner("Analyzing data based on your query.."):
+                        response = qa.invoke(query)
+                        #if not response["source_documents"]:
+                            #st.write("The Question is out of context or the correct documents not provided")
+                        #else:
+                        buildResult(response)
+                        st.session_state.prevQuery = query
+                    #  st.session_state.query = ""
+                else:
+                    render_chat(st.session_state.singleConv)
                   
             
 
