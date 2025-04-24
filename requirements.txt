@@ -6,3 +6,4 @@ faiss-cpu
 pymupdf
 pdf2docx
 SpeechRecognition
+sentence-transformer
