@@ -118,7 +118,6 @@ def CheckIfResumeUploaded(qa):
 
 def suggestPrompts2(qa):
     st.session_state.firstPromptGiven = True
-  #    Focus on interview feedbacks, selection/rejection or interview readiness.
     suggPrompt="Suggest 3-5 short prompts based on provided documents,focus only on selection, rejection status and interview feedbacks,Dont give any reason" 
     try:
         prompts = qa.invoke(suggPrompt)   
@@ -250,12 +249,15 @@ def createTempfile(files):
 
 def inputFromMicrophone():
     recog = SR.Recognizer()
-    with SR.Microphone() as source:
-        with st.spinner("Listening..."):
-            recog.adjust_for_ambient_noise(source,duration=1)
-            audio = recog.listen(source,timeout = None,phrase_time_limit = 20)
     try:
+        with SR.Microphone() as source:
+            with st.spinner("Listening..."):
+                recog.adjust_for_ambient_noise(source,duration=1)
+                audio = recog.listen(source,timeout = None,phrase_time_limit = 20)
+  
         st.session_state.query = recog.recognize_google(audio)
+    except AttributeError as e:
+        st.error("Could not find PyAudio; check audio hardware installation")
     except SR.UnknownValueError as e:
         st.warning("Coud not understand audio, use textbox instead or try again!")
     except SR.RequestError as e:    
