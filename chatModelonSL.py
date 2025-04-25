@@ -42,7 +42,8 @@ if "qa" not in st.session_state:
     st.session_state.qa = None
 if "uploaded_files" not in st.session_state:
     st.session_state.uploaded_files = []
-
+if "firstPromptGiven" not in st.session_state:
+    st.session_state.firstPromptGiven=False
 if "resumeUploaded" not in st.session_state:
     st.session_state.resumeUploaded=False
 
@@ -52,7 +53,8 @@ if "clear_chat_clicked" not in st.session_state:
      st.session_state.clear_chat_clicked = False 
 
 if not api_key:
-     st.warning("API key not found , please check environment variables")
+     st.error("API key not found , please check environment variables")
+     st.stop()
 else:    
     if "llm" not in st.session_state:    
         st.session_state.llm = ChatOpenAI(
@@ -60,6 +62,7 @@ else:
         api_key   = api_key,
       # model_name= "llama3-70b-8192"  #model name may reach limit
     #    model_name= "llama3-8b-8192"  # reached limit
+      #  model_name = st.sidebar.selectbox("Choose a LLM model",["llama3-8b-8192","llama-3.1-8b-instant"])
         model_name="llama-3.1-8b-instant"
      #  model_name= "llama3-70b-8192"  #reached limit
     )   
@@ -69,26 +72,42 @@ def clear_text():
     st.session_state.query = st.session_state.query_input
     st.session_state.query_input = ""
 
+def setQuery():
+    st.session_state.query = st.session_state.promptSelect
+
 def buildResult(response):
     st.write("🧑 You : "+response["query"])   
-    st.write("🤖 HRBuddy : "+response["result"]) 
+    st.write("🧠 HRBuddy : "+response["result"]) 
     q = "\n"
     q += response["query"]
     r  = response["result"]                                                       
-    line = '_' * 80                    
+    line = '_' * 80                   
     # st.text_area("Conversation with HRBuddy", value=st.session_state.chat_history, height=400)
-    st.write("Full Conversation with HRBuddy (Download from left panel):")
-    r +="\n"+ line
-    st.session_state.singleConv.append((q,r))           
-    render_chat(st.session_state.singleConv)
+    st.write(st.session_state.clear_chat_clicked)
+    if not st.session_state.clear_chat_clicked:
+        with st.expander("Full Conversation with HRBuddy (Download from left panel)"):
+        # st.write("Full Conversation with HRBuddy (Download from left panel):")
+            r +="\n"+ line
+            st.session_state.singleConv.append((q,r))           
+            render_chat(st.session_state.singleConv)
 
 def CheckIfResumeUploaded(qa):
  if st.session_state.resume_verified == False:
-    resp = qa.invoke(
-    """Analyze the uploaded documents. Based on its structure and content,"
-       is this likely a resume or CV of a person?
-       Respond with only 'Yes' or 'No'."""
-)
+    try:
+
+        resp = qa.invoke(
+        """Analyze the uploaded documents. Based on its structure and content,
+        is this likely a resume or CV of a person?
+        Respond with only 'Yes' or 'No'."""
+    )
+    except Exception as e:
+        resp=""
+        if "please reduce your message size" in str(e).lower or "request too large for" in str(e).lower:
+            st.error("Request too large for the model, upgrade your tier!")
+        else:
+            st.error("Error occureed while sending query! "+str(e))
+    if not resp:
+        return
     ans = resp["result"].lower()
     st.session_state.resume_verified = True
     if "yes" not in ans:
@@ -97,13 +116,33 @@ def CheckIfResumeUploaded(qa):
         return False
     else:
         return True
-        
-def start_chat(qa,resumeUploaded):
+
+def suggestPrompts2(qa):
+    st.session_state.firstPromptGiven = True
+  #    Focus on interview feedbacks, selection/rejection or interview readiness.
+    suggPrompt="Suggest 3-5 short prompts based on provided documents,Dont give any reason" 
+    try:
+        prompts = qa.invoke(suggPrompt)   
+        newlines=[] 
+        lines = prompts["result"]
+     #   st.write(lines)
+        singleLines=lines.splitlines()
+        for eachLine in  singleLines:
+            if eachLine !="":
+                newlines.append(eachLine)
+        st.selectbox("Select a AI generated prompt or type a query",newlines[0:],key="promptSelect",on_change=setQuery)  
+      
+    except:
+        st.error("No prompts available, ener a query to proceed")
+
+def start_chat(qa,resumeUploaded):  
     if  st.session_state.clear_chat_clicked :
-         return
-   
+         return  
     if resumeUploaded:
+       # lines = ""
         query = st.session_state.query
+        if not st.session_state.firstPromptGiven:
+            suggestPrompts2(qa) 
         if query:
             query = query[0].upper() + query[1:]
        # query = st.session_state.query_input.strip()
@@ -114,7 +153,14 @@ def start_chat(qa,resumeUploaded):
             if query != "" :
                 if query != st.session_state.prevQuery:
                     with st.spinner("Analyzing data based on your query.."):
-                        response = qa.invoke(query)
+                        try:
+                            response = qa.invoke(query)
+                        except Exception as e:
+                            if "please reduce your message size" in str(e).lower or "request too large for" in str(e).lower:
+                                st.error("Request too large for the model, upgrade your tier!")
+                            else:
+                                st.error("Error occureed while sending query! "+str(e))
+
                        # st.write("Source docs:", response["source_documents"])
                         #if not response["source_documents"]:
                         #st.write("The Question is out of context or the correct documents not provided")
@@ -123,11 +169,19 @@ def start_chat(qa,resumeUploaded):
                         st.session_state.prevQuery = query
                     #  st.session_state.query = ""
                 else:
-                    render_chat(st.session_state.singleConv)
+                    st.write(st.session_state.clear_chat_clicked)
+                    if not st.session_state.clear_chat_clicked:
+                        with st.expander("Full Conversation with HRBuddy (Download from left panel)"):
+                            render_chat(st.session_state.singleConv)
                   
             
 
 def render_chat(singleConv: str):
+ #   for query,response in singleConv:
+ #       with st.chat_message("user"):
+ #           st.markdown(query)
+ #       with st.chat_message("assistant"):
+ #           st.markdown(response)
     st.markdown("""
     <style>
     .chat-box {
@@ -195,37 +249,43 @@ def createTempfile(files):
         tmp_file.write(files.read())
         return tmp_file.name
     
+
 def inputFromMicrophone():
     recog = SR.Recognizer()
     with SR.Microphone() as source:
         with st.spinner("Listening..."):
-            recog.adjust_for_ambient_noise(source)
-            audio = recog.listen(source,timeout=10,phrase_time_limit=10)
+            recog.adjust_for_ambient_noise(source,duration=1)
+            audio = recog.listen(source,timeout = None,phrase_time_limit = 20)
     try:
         st.session_state.query = recog.recognize_google(audio)
-    except SR.UnknownValueError:
-        st.warning("Could not understand audio,use text box or try again")
+    except SR.UnknownValueError as e:
+        st.warning("Coud not understand audio, use textbox instead or try again!")
     except SR.RequestError as e:    
-        st.warning("No results for Google Speech Recognition")
-
+        st.error("Could not get response from Google Speech Recognistion!")
+    except:
+        st.error("Other errors!")
 
 def  createRetrieverQA(docs,emb):
     vectorStores = FAISS.from_documents(docs,emb)
-    vectorStores.save_local("faiss")
+  #  vectorStores.save_local("faiss")
     retriever = vectorStores.as_retriever()
-    qa = RetrievalQA.from_llm(
+    try:
+
+        qa = RetrievalQA.from_llm(
     llm = st.session_state.llm,
     retriever = retriever,
     return_source_documents=True       
     )
+    except Exception as e:
+        st.error("Error occured while creating RetrievalQA "+e)
     return qa
 
 
 if "emb" not in st.session_state:
    # st.session_state.emb= HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    st.session_state.emb= HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+    st.session_state.emb = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
 st.title("OnBoarding Pro")
-st.write("Dear HR, How can I help you today?")
+st.subheader("Dear HR, How can I help you today?")
 introText = "This is an HR assistance tool which works based on Candidates' profile" \
 "  and interview feedbacs. Please uploaded all supporting document to have best results"
 
@@ -233,6 +293,7 @@ with st.sidebar:
     colImg1,colImg2,colImg13=st.columns(3)
     with colImg2:
         st.image("silicon.png")
+    st.markdown("---")
 path = st.sidebar.file_uploader("Upload Candidate's Resume and supporting docs(*.pdf, *.docx)",
 accept_multiple_files = True,
 help = "Upload one more more files"
@@ -242,10 +303,16 @@ if st.session_state.intro and path ==[]:
     st.session_state.intro = False
 col1, col2 = st.columns([5, 1])
 with col1:
-    st.text_input("Enter your query here", key="query_input", on_change=clear_text)
+    st.text_input("💡Enter your query here", 
+                  key="query_input", on_change=clear_text,
+                  placeholder="Eg. Is the candidate selected?")
 with col2:
-    if st.button("🎤"):
+    if st.button("🎤",help = "Click here to speak your query"): 
         inputFromMicrophone()
+if st.session_state.qa: 
+    if st.button("💡Suggest Prompts",help = "Feeling lazy? Click here to show AI generated prompts"):
+       # suggestPrompts(st.session_state.qa)
+        st.session_state.firstPromptGiven=False
 
 new_docs = []
 if path is not None:  
@@ -274,15 +341,19 @@ if len(new_docs) > 0 and files_changed:
     with st.spinner("Building dataset, please wait..."):       
         st.session_state.qa =  createRetrieverQA(new_docs,st.session_state.emb) 
         st.session_state.resumeUploaded = CheckIfResumeUploaded(st.session_state.qa)  
-
-if st.session_state.qa: 
-    start_chat(st.session_state.qa,st.session_state.resumeUploaded)
+else:
+    if not len(new_docs):
+        st.info("Upload a resume or other supporting documents to begin")
+        st.session_state.query=""
+        st.session_state.firstPromptGiven=False
+        st.stop()
+        
 
 with st.sidebar:
     col3,col4=st.columns(2)    
     with col3:
         if st.button("Clear Chat"):
-            st.text_area("Conversation with HRBuddy", value="", height=400)
+          #  st.text_area("Conversation with HRBuddy", value="", height=400)
             st.session_state.clear_chat_clicked = True
             st.session_state.singleConv = []                     
         else:          
@@ -303,6 +374,8 @@ with st.sidebar:
             mime      = "text/plain"
             )
         # st.session_state.singleConv = []  
+if st.session_state.qa: 
+    start_chat(st.session_state.qa,st.session_state.resumeUploaded)
   
 if not path:
      st.info("Upload a resume or other supporting documents to begin")
