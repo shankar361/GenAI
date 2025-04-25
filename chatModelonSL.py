@@ -83,7 +83,6 @@ def buildResult(response):
     r  = response["result"]                                                       
     line = '_' * 80                   
     # st.text_area("Conversation with HRBuddy", value=st.session_state.chat_history, height=400)
-    st.write(st.session_state.clear_chat_clicked)
     if not st.session_state.clear_chat_clicked:
         with st.expander("Full Conversation with HRBuddy (Download from left panel)"):
         # st.write("Full Conversation with HRBuddy (Download from left panel):")
@@ -120,7 +119,7 @@ def CheckIfResumeUploaded(qa):
 def suggestPrompts2(qa):
     st.session_state.firstPromptGiven = True
   #    Focus on interview feedbacks, selection/rejection or interview readiness.
-    suggPrompt="Suggest 3-5 short prompts based on provided documents,Dont give any reason" 
+    suggPrompt="Suggest 3-5 short prompts based on provided documents,focus only on selection, rejection status and interview feedbacks,Dont give any reason" 
     try:
         prompts = qa.invoke(suggPrompt)   
         newlines=[] 
@@ -169,7 +168,6 @@ def start_chat(qa,resumeUploaded):
                         st.session_state.prevQuery = query
                     #  st.session_state.query = ""
                 else:
-                    st.write(st.session_state.clear_chat_clicked)
                     if not st.session_state.clear_chat_clicked:
                         with st.expander("Full Conversation with HRBuddy (Download from left panel)"):
                             render_chat(st.session_state.singleConv)
