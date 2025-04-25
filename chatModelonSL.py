@@ -287,7 +287,7 @@ if "emb" not in st.session_state:
 st.title("OnBoarding Pro")
 st.subheader("Dear HR, How can I help you today?")
 introText = "This is an HR assistance tool which works based on Candidates' profile" \
-"  and interview feedbacs. Please uploaded all supporting document to have best results"
+"  and interview feedbacks. Please upload all supporting documents to have best results"
 
 with st.sidebar:
     colImg1,colImg2,colImg13=st.columns(3)
