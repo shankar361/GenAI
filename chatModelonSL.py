@@ -3,7 +3,8 @@ import speech_recognition as SR
 import streamlit as st
 from langchain_openai import ChatOpenAI
 from langchain_community.vectorstores import FAISS
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain.embeddings import HuggingFaceEmbeddings
+from sentence_transformers import SentenceTransformer
 from langchain.chains.retrieval_qa.base import RetrievalQA
 #from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyMuPDFLoader
@@ -16,8 +17,10 @@ import os
 
 dotenv.load_dotenv()
 api_key   = os.getenv("api_key")
+
 if "intro" not in st.session_state:
     st.session_state.intro=True
+
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = ""
 
@@ -40,15 +43,19 @@ if "docs" not in st.session_state:
 
 if "qa" not in st.session_state:
     st.session_state.qa = None
+
 if "uploaded_files" not in st.session_state:
     st.session_state.uploaded_files = []
+
 if "firstPromptGiven" not in st.session_state:
     st.session_state.firstPromptGiven=False
+
 if "resumeUploaded" not in st.session_state:
     st.session_state.resumeUploaded=False
 
 if "resume_verified" not in st.session_state:
      st.session_state.resume_verified = False
+
 if "clear_chat_clicked" not in st.session_state:
      st.session_state.clear_chat_clicked = False 
 
@@ -88,7 +95,7 @@ def buildResult(response):
         # st.write("Full Conversation with HRBuddy (Download from left panel):")
             r +="\n"+ line
             st.session_state.singleConv.append((q,r))           
-            render_chat(st.session_state.singleConv)
+            render_chatST(st.session_state.singleConv)
 
 def CheckIfResumeUploaded(qa):
  if st.session_state.resume_verified == False:
@@ -128,7 +135,7 @@ def suggestPrompts2(qa):
         for eachLine in  singleLines:
             if eachLine !="":
                 newlines.append(eachLine)
-        st.selectbox("Select a AI generated prompt or type a query",newlines[0:],key="promptSelect",on_change=setQuery)  
+        st.selectbox("Select an AI generated prompt or type a query",newlines[0:],key="promptSelect",on_change=setQuery)  
       
     except:
         st.error("No prompts available, ener a query to proceed")
@@ -169,16 +176,17 @@ def start_chat(qa,resumeUploaded):
                 else:
                     if not st.session_state.clear_chat_clicked:
                         with st.expander("Full Conversation with HRBuddy (Download from left panel)"):
-                            render_chat(st.session_state.singleConv)
+                            render_chatST(st.session_state.singleConv)
                   
             
+def render_chatST(singleConv: str):
+    for query,response in singleConv:
+        with st.chat_message("user",):
+            st.markdown(query)
+        with st.chat_message("ai"):
+            st.markdown(response)
 
 def render_chat(singleConv: str):
- #   for query,response in singleConv:
- #       with st.chat_message("user"):
- #           st.markdown(query)
- #       with st.chat_message("assistant"):
- #           st.markdown(response)
     st.markdown("""
     <style>
     .chat-box {
@@ -282,12 +290,14 @@ def  createRetrieverQA(docs,emb):
 
 
 if "emb" not in st.session_state:
-   # st.session_state.emb= HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    st.session_state.emb = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+    st.session_state.emb= HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+   
+ #   model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
+   # st.session_state.emb = HuggingFaceEmbeddings(model_name=model)
 st.title("OnBoarding Pro")
 st.subheader("Dear HR, How can I help you today?")
 introText = "This is an HR assistance tool which works based on Candidates' profile" \
-"  and interview feedbacks. Please upload all supporting documents to have best results"
+"  and interview feedbacks. Please upload all supporting document to have best results"
 
 with st.sidebar:
     colImg1,colImg2,colImg13=st.columns(3)
@@ -307,6 +317,7 @@ with col1:
                   key="query_input", on_change=clear_text,
                   placeholder="Eg. Is the candidate selected?")
 with col2:
+    st.write("")
     if st.button("🎤",help = "Click here to speak your query"): 
         inputFromMicrophone()
 if st.session_state.qa: 
@@ -349,33 +360,30 @@ else:
         st.stop()
         
 
-with st.sidebar:
-    col3,col4=st.columns(2)    
-    with col3:
-        if st.button("Clear Chat"):
-          #  st.text_area("Conversation with HRBuddy", value="", height=400)
-            st.session_state.clear_chat_clicked = True
-            st.session_state.singleConv = []                     
-        else:          
-            st.session_state.clear_chat_clicked = False
-            
-
-    with col4:
-        textBytes=bytes()
-        if  st.session_state.singleConv != []:
-            for q,r in st.session_state.singleConv:
-                chat_line = f"You: {q}\nHRBuddy: {r}\n{'_' * 80}\n\n"
-                textBytes += chat_line.encode('utf-8')
-            
-            now1 = datetime.now()
-            st.download_button(label = "Download Chat",
-            data      = textBytes,
-            file_name = "downloadedChat_"+ now1.strftime("%Y-%m-%d-%H:%M:%S")+".txt",
-            mime      = "text/plain"
-            )
-        # st.session_state.singleConv = []  
+     
+if st.sidebar.button("Clear Chat"):
+    #  st.text_area("Conversation with HRBuddy", value="", height=400)
+    st.session_state.clear_chat_clicked = True
+    st.session_state.singleConv = []                     
+else:          
+    st.session_state.clear_chat_clicked = False
+              
 if st.session_state.qa: 
     start_chat(st.session_state.qa,st.session_state.resumeUploaded)
-  
+
+textBytes = bytes()
+if  st.session_state.singleConv != []:
+    for q,r in st.session_state.singleConv:
+        chat_line = f"You: {q}\nHRBuddy: {r}\n{'_' * 80}\n\n"
+        textBytes += chat_line.encode('utf-8')
+    
+    now1 = datetime.now()
+    st.sidebar.download_button(label = "Download Chat",
+    data      = textBytes,
+    file_name = "downloadedChat_"+ now1.strftime("%Y-%m-%d-%H:%M:%S")+".txt",
+    mime      = "text/plain"
+    )
+# st.session_state.singleConv = []   
+
 if not path:
      st.info("Upload a resume or other supporting documents to begin")
